@@ -33,7 +33,7 @@ git clone https://github.com/Cer11/offline-html-app.git "$env:USERPROFILE\.agent
 
 **不想碰 git 的**：去 [Latest Release](https://github.com/Cer11/offline-html-app/releases/latest) 下载 `offline-html-app-v1.2.zip`（50 KB），解压出来就是 `offline-html-app` 文件夹，整个放进上面的 skills 目录即可。
 
-国内网络走 Gitee 镜像，把地址换成 `https://gitee.com/zhangzhihui1998/offline-html-app.git`；只想给单个项目用，就克隆到项目里的 `.qoder/skills/offline-html-app`。
+国内网络走 Gitee 镜像：克隆地址换成 `https://gitee.com/zhangzhihui1998/offline-html-app.git`，不想克隆就直接下仓库里的 [`dist/offline-html-app-技能包.zip`](https://gitee.com/zhangzhihui1998/offline-html-app/raw/main/dist/offline-html-app-%E6%8A%80%E8%83%BD%E5%8C%85.zip)（与 Release 里那份字节一致）；只想给单个项目用，就克隆到项目里的 `.qoder/skills/offline-html-app`。
 
 重启会话（或 `/skills reload`）后直接说需求即可命中，例如：
 
