@@ -22,10 +22,20 @@
 
 ```bash
 # 用户级安装（Windows 路径换成 C:\Users\<你>\.agents\skills\）
-git clone https://github.com/<你的用户名>/offline-html-app.git ~/.agents/skills/offline-html-app
+git clone https://github.com/Cer11/offline-html-app.git ~/.agents/skills/offline-html-app
 ```
 
-重启会话或直接说需求即可命中，例如：
+Windows PowerShell 一条命令：
+
+```powershell
+git clone https://github.com/Cer11/offline-html-app.git "$env:USERPROFILE\.agents\skills\offline-html-app"
+```
+
+**不想碰 git 的**：去 [Latest Release](https://github.com/Cer11/offline-html-app/releases/latest) 下载 `offline-html-app-v1.2.zip`（50 KB），解压出来就是 `offline-html-app` 文件夹，整个放进上面的 skills 目录即可。
+
+国内网络走 Gitee 镜像，把地址换成 `https://gitee.com/zhangzhihui1998/offline-html-app.git`；只想给单个项目用，就克隆到项目里的 `.qoder/skills/offline-html-app`。
+
+重启会话（或 `/skills reload`）后直接说需求即可命中，例如：
 
 > 用 offline-html-app 做一个进货台账，要能记品名数量单价、自动算金额、按月汇总、能导 CSV，手机上也要能用。
 
@@ -56,7 +66,7 @@ offline-html-app/
 │  ├─ portability.md               状态模型、存储兜底、工程文件自包含、各内核/设备坑对照
 │  └─ verification.md              数值化验收探针、阈值、测试方法学教训
 ├─ examples/                       三个实测成品 + 一份 CSV 样例
-└─ dist/offline-html-app-技能包.zip  给不用 git 的人（50 KB）
+└─ dist/offline-html-app-技能包.zip  同一份内容的 zip（50 KB）；对外分发优先用 Release 里的 offline-html-app-v1.2.zip
 ```
 
 ## 实测数字
