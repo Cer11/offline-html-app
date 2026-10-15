@@ -1,0 +1,18 @@
+# 统一按 LF 存储，避免 Windows 上 core.autocrlf=true 把脚本换成 CRLF
+# （audit.sh 一旦变成 CRLF，在 macOS / Linux 上直接跑不起来）
+* text=auto eol=lf
+
+*.sh    text eol=lf
+*.js    text eol=lf
+*.mjs   text eol=lf
+*.html  text eol=lf
+*.css   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+
+*.csv   text
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.woff2 binary
+*.zip   binary

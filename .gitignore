@@ -1,0 +1,16 @@
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.idea/
+.vscode/
+
+# 本地临时物
+*.tmp
+*.log
+node_modules/
+
+# 用这个技能做出来的应用，数据一律走应用内的「导出备份」，不要提交进仓库
+data/
+*.sqlite

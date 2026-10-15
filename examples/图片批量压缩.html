@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<!-- profile: tool -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>图片批量压缩 · 加水印</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:#f3f5f3;color:#22282b;font-family:"Microsoft YaHei","微软雅黑","PingFang SC",sans-serif;
+  -webkit-text-size-adjust:100%;text-size-adjust:100%}
+button,input,select{font-family:inherit;font-size:16px}
+#nojs{display:block;background:#fff8ec;color:#3a3226;font-size:16px;line-height:2;padding:24px 20px;border-bottom:3px solid #c9a227}
+#hd{background:#1a1f1b;color:#fff;padding:12px 14px}
+#hd h1{margin:0;font-size:18px;letter-spacing:2px}
+#hd .sub{font-size:12px;color:#9aa6a0;margin-top:4px}
+#set{background:#fff;border-bottom:1px solid #e2e6e2;padding:10px 12px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end}
+#set .f{min-width:110px}
+#set label{display:block;font-size:12px;color:#7a828e;margin-bottom:3px}
+.in{width:100%;background:#fff;color:#111;border:1.4px solid #c9cfd8;border-radius:8px;padding:9px 10px}
+#bar{position:sticky;top:0;z-index:50;background:#243029;display:flex;flex-wrap:wrap;gap:7px;padding:9px 12px;align-items:center}
+.btn{background:#2d342e;color:#eef1f5;border:1px solid #465046;border-radius:8px;padding:10px 14px;font-size:14px;cursor:pointer;white-space:nowrap;min-height:42px}
+.btn.pri{background:#2f5d58;border-color:#5c8d86;font-weight:600}
+.btn.gd{background:#6b5314;border-color:#a5842f}
+.btn.dg{background:#4a2b26;border-color:#7c4a41;color:#f2dad3}
+.btn:disabled{opacity:.45;cursor:default}
+#sum{padding:8px 14px;background:#e8eee9;font-size:13.5px;color:#3a4640}
+#sum b{color:#1d2a22}
+#drop{margin:12px;padding:34px 14px;border:2px dashed #b7c6bf;border-radius:14px;background:#fff;text-align:center;color:#7a828e;font-size:15px;line-height:2}
+#drop.on{border-color:#2f5d58;background:#eef5f2;color:#2f5d58}
+#list{padding:0 12px 90px}
+.it{background:#fff;border-radius:10px;padding:10px;margin-bottom:9px;display:flex;gap:11px;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.it .th{width:64px;height:64px;flex:none;object-fit:cover;border-radius:7px;background:#eef1ef;display:block}
+.it .m{flex:1;min-width:0}
+.it .nm{font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it .st{font-size:12.5px;color:#7a828e;margin-top:4px}
+.it .st.ok{color:#2f5d58}.it .st.er{color:#a63a2b}
+.it .ops{display:flex;flex-direction:column;gap:6px}
+.it .ops .btn{padding:7px 11px;font-size:12.5px;min-height:36px;background:#eef1f5;color:#222;border-color:#d3d9e2}
+.bar2{height:5px;background:#e6eae6;border-radius:3px;margin-top:6px;overflow:hidden}
+.bar2 i{display:block;height:100%;background:#2f5d58;width:0}
+#ask{position:fixed;inset:0;z-index:130;background:rgba(18,22,19,.74);display:none;align-items:center;justify-content:center;padding:18px}
+#ask .box{background:#fff;border-radius:14px;max-width:440px;width:100%;padding:22px 20px}
+#ask h3{margin:0 0 12px;font-size:18px;color:#a63a2b}
+#ask .l{font-size:14.5px;line-height:1.95;color:#3a4640}
+#ask .acts{display:flex;gap:10px;margin-top:20px}
+#ask .acts .btn{flex:1;min-height:46px;background:#eef2ef;color:#333;border:1px solid #cfd6d0}
+#ask .acts .btn.dg{background:#a63a2b;color:#fff;border-color:#a63a2b;font-weight:600}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:rgba(20,22,19,.94);color:#fff;font-size:14px;padding:11px 18px;border-radius:22px;z-index:140;display:none;max-width:88vw;text-align:center}
+#env{padding:8px 14px;font-size:12px;color:#7a828e}
+@media (min-width:760px){#set{padding:12px 18px}#list{padding:0 18px 90px}}
+</style>
+</head>
+<body>
+<div id="nojs"><b>这个工具需要 JavaScript。</b><br>
+  微信里直接点开只能看。请点「···」→「用其他应用打开」→ 选浏览器（Safari / Chrome / Edge / 夸克）。<br>
+  图片全程在你本机处理，不上传任何服务器。</div>
+<script>document.getElementById('nojs').style.display='none';</script>
+
+<div id="hd"><h1>图片批量压缩 · 加水印</h1>
+  <div class="sub">全部在本机浏览器里完成 · 断网可用 · 不上传</div></div>
+
+<div id="set">
+  <div class="f"><label>最长边（px）</label><select class="in" id="mx">
+    <option value="900">900（微信/网页）</option><option value="1280">1280</option><option value="1600" selected>1600（打印够用）</option>
+    <option value="2000">2000</option><option value="2400">2400</option></select></div>
+  <div class="f"><label>质量</label><select class="in" id="q">
+    <option value="0.7">小一点 0.70</option><option value="0.85" selected>均衡 0.85</option><option value="0.95">清晰 0.95</option></select></div>
+  <div class="f"><label>格式</label><select class="in" id="fmt"><option value="image/jpeg" selected>JPG</option><option value="image/webp">WebP</option><option value="image/png">PNG</option></select></div>
+  <div class="f" style="flex:1;min-width:150px"><label>水印文字（留空则不加）</label><input class="in" id="wm" value="示例餐厅"></div>
+  <div class="f"><label>位置</label><select class="in" id="pos"><option value="br" selected>右下</option><option value="bl">左下</option><option value="c">正中</option><option value="tile">平铺斜纹</option></select></div>
+  <div class="f"><label>字号（相对长边 %）</label><input class="in" id="wfs" type="number" value="4" min="1" max="20"></div>
+  <div class="f"><label>不透明度 %</label><input class="in" id="wop" type="number" value="55" min="5" max="100"></div>
+</div>
+
+<div id="bar">
+  <button class="btn pri" id="bPick">＋ 选图片</button>
+  <button class="btn gd" id="bRun">开始处理</button>
+  <button class="btn" id="bAll">全部下载</button>
+  <button class="btn" id="bClr">清空列表</button>
+  <span id="prog" style="color:#cfd8d2;font-size:13px"></span>
+</div>
+<div id="sum"></div>
+<div id="drop">点这里选图片，或把图片拖进来<br><span style="font-size:12.5px">支持一次多张 · JPG / PNG / WebP / HEIC 里浏览器能解码的格式</span></div>
+<div id="list"></div>
+<div id="env"></div>
+
+<div id="ask"><div class="box"><h3 id="askt"></h3><div id="askb"></div>
+  <div class="acts"><button class="btn" id="askno">取消</button><button class="btn dg" id="askok">确认</button></div></div></div>
+<div id="toast"></div>
+<input type="file" id="fImg" accept="image/*" multiple style="display:none">
+
+<script>
+(function(){
+'use strict';
+var MAXPX=16000000;   /* iOS Safari 画布面积约 16.7M px 上限 */
+var items=[],seq=0,CONC=2;
+function $(){return document.getElementById(arguments[0]);}
+function E(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
+function mkbtn(t,c,f){var b=E('button',c?('btn '+c):'btn',t);b.onclick=f;return b;}
+function toast(m,t){var x=$('toast');x.textContent=m;x.style.display='block';clearTimeout(x._t);x._t=setTimeout(function(){x.style.display='none';},t||2600);}
+function kb(n){return n>1048576?(n/1048576).toFixed(2)+' MB':Math.round(n/1024)+' KB';}
+function cfg(){return {mx:parseInt($('mx').value,10),q:parseFloat($('q').value),fmt:$('fmt').value,
+  wm:$('wm').value,pos:$('pos').value,fs:Math.max(1,Math.min(20,parseFloat($('wfs').value)||4))/100,
+  op:Math.max(.05,Math.min(1,(parseFloat($('wop').value)||55)/100))};}
+
+function addFiles(fs){
+  var arr=[].slice.call(fs||[]).filter(function(f){return /^image\//.test(f.type)||/\.(jpe?g|png|webp|gif|bmp)$/i.test(f.name);});
+  var skip=arr.length?0:(fs?fs.length:0);
+  if(!arr.length&&fs&&fs.length){toast('这些文件浏览器读不了（HEIC 请先转成 JPG）',4200);return;}
+  arr.forEach(function(f){
+    var it={id:++seq,file:f,name:f.name,size:f.size,url:URL.createObjectURL(f),w:0,h:0,out:null,outSize:0,state:'wait',el:null};
+    items.push(it);
+    var im=new Image();
+    im.onload=function(){it.w=im.naturalWidth;it.h=im.naturalHeight;paint(it);};
+    im.onerror=function(){it.state='err';it.msg='无法解码';paint(it);};
+    im.src=it.url;
+  });
+  renderList();
+}
+function paint(it){
+  if(!it.el)return;
+  var s=it.el.querySelector('.st'),b=it.el.querySelector('.bar2 i');
+  it.el.querySelector('.nm').textContent=it.name;
+  if(it.w)it.el.querySelector('.th').src=it.url;
+  s.className='st'+(it.state==='done'?' ok':it.state==='err'?' er':'');
+  s.textContent=it.state==='err'?('失败：'+it.msg):
+    (it.w?it.w+'×'+it.h+'　'+kb(it.size)+(it.state==='done'?' → '+(it.ow+'×'+it.oh)+'　'+kb(it.outSize)+'　省 '+Math.max(0,Math.round(100-it.outSize/it.size*100))+'%':''):'读取中…');
+  if(b)b.style.width=it.state==='done'?'100%':(it.state==='run'?'45%':'0');
+  var ops=it.el.querySelector('.ops');ops.innerHTML='';
+  if(it.state==='done'){ops.appendChild(mkbtn('下载','',function(){dl(it);}));ops.appendChild(mkbtn('重做','',function(){runOne(it);}));}
+  else if(it.state!=='run'){ops.appendChild(mkbtn('处理','',function(){runOne(it);}));}
+  ops.appendChild(mkbtn('删','',function(){drop(it);}));
+}
+function renderList(){
+  var L=$('list');L.innerHTML='';
+  items.forEach(function(it){
+    var d=E('div','it');
+    var th=E('img','th');th.alt='';
+    var m=E('div','m');m.appendChild(E('div','nm',it.name));m.appendChild(E('div','st','排队中'));
+    var p=E('div','bar2');p.appendChild(E('i'));m.appendChild(p);
+    var o=E('div','ops');m.appendChild(o);
+    d.appendChild(th);d.appendChild(m);L.appendChild(d);
+    it.el=d;paint(it);
+  });
+  var tot=items.reduce(function(a,b){return a+b.size;},0),done=items.filter(function(x){return x.state==='done';});
+  var out=done.reduce(function(a,b){return a+b.outSize;},0);
+  $('sum').innerHTML='共 <b>'+items.length+'</b> 张　原计 <b>'+kb(tot)+'</b>　已处理 <b>'+done.length+'</b> 张 → <b>'+kb(out)+'</b>'+
+    (done.length&&tot?'　平均省 <b>'+Math.max(0,Math.round(100-out/items.length*items.length/Math.max(1,tot)*100))+'%</b>':'');
+}
+function drop(it){var i=items.indexOf(it);if(i>=0)items.splice(i,1);if(it.url)URL.revokeObjectURL(it.url);if(it.out)URL.revokeObjectURL(it.out);renderList();}
+
+/* 缩放：大跨度缩放分两步降，避免一次采样出现锯齿/摩尔纹 */
+function shrinkTo(img,w,h,mx){
+  var tw=w,th=h,cur=document.createElement('canvas');
+  cur.width=w;cur.height=h;cur.getContext('2d').drawImage(img,0,0);
+  while(Math.max(tw,th)/2>mx){
+    var nw=document.createElement('canvas');nw.width=Math.max(1,tw>>1);nw.height=Math.max(1,th>>1);
+    var g=nw.getContext('2d');g.drawImage(cur,0,0,nw.width,nw.height);cur=nw;tw=nw.width;th=nw.height;
+  }
+  if(tw!==mx&&Math.max(tw,th)!==mx){
+    var s=Math.min(1,mx/Math.max(w,h)),fw=Math.max(1,Math.round(w*s)),fh=Math.max(1,Math.round(h*s));
+    var fin=document.createElement('canvas');fin.width=fw;fin.height=fh;
+    var fg=fin.getContext('2d');fg.imageSmoothingQuality='high';fg.drawImage(cur,0,0,fw,fh);return fin;
+  }
+  return cur;
+}
+function drawWm(cv,c){
+  if(!c.wm)return;
+  var g=cv.getContext('2d'),L=Math.max(cv.width,cv.height),fs=Math.max(10,Math.round(L*c.fs));
+  g.save();g.globalAlpha=c.op;g.font='600 '+fs+'px "Microsoft YaHei","PingFang SC",sans-serif';
+  g.textBaseline='alphabetic';
+  var wds=g.measureText(c.wm).width;
+  if(c.pos==='tile'){
+    g.translate(cv.width/2,cv.height/2);g.rotate(-Math.PI/9);g.translate(-cv.width/2,-cv.height/2);
+    g.globalAlpha=Math.min(c.op,.32);
+    for(var y=-fs;y<cv.height+fs*3;y+=fs*2.6)for(var x=-wds-fs;x<cv.width+wds+fs;x+=wds+fs*2.2)g.fillText(c.wm,x,y);
+  }else{
+    var x=c.pos==='bl'?cv.width*0.04:cv.width-cv.width*0.04-wds, y=c.pos==='c'?cv.height/2+fs/3:cv.height-cv.height*0.05;
+    if(c.pos==='c')x=(cv.width-wds)/2;
+    g.lineWidth=Math.max(1,fs*0.09);g.strokeStyle='rgba(0,0,0,.45)';g.strokeText(c.wm,x,y);
+    g.fillStyle='#fff';g.fillText(c.wm,x,y);
+  }
+  g.restore();
+}
+function process(it,c){
+  return new Promise(function(res){
+    var im=new Image();
+    im.onload=function(){
+      try{
+        var w=im.naturalWidth,h=im.naturalHeight;
+        if(!w||!h){res({err:'尺寸为 0'});return;}
+        var s=Math.min(1,c.mx/Math.max(w,h)),tw=Math.max(1,Math.round(w*s)),th=Math.max(1,Math.round(h*s));
+        if(tw*th>MAXPX){var k=Math.sqrt(MAXPX/(tw*th));tw=Math.round(tw*k);th=Math.round(th*k);}
+        var cv=shrinkTo(im,w,h,Math.max(tw,th));
+        if(cv.width!==tw||cv.height!==th){var f=document.createElement('canvas');f.width=tw;f.height=th;
+          var fg=f.getContext('2d');fg.imageSmoothingQuality='high';fg.drawImage(cv,0,0,tw,th);cv=f;}
+        drawWm(cv,c);
+        var type=c.fmt,ok=(type!=='image/webp')?true:(function(){try{return cv.toDataURL('image/webp').indexOf('data:image/webp')===0;}catch(e){return false;}})();
+        if(!ok)type='image/jpeg';
+        cv.toBlob(function(bl){
+          if(!bl){res({err:'导出为空（内存不足？把最长边调小）'});return;}
+          res({blob:bl,w:cv.width,h:cv.height,type:type});
+        },type,c.q);
+      }catch(e){res({err:(e&&e.message)||'处理异常'});}
+    };
+    im.onerror=function(){res({err:'图片解码失败'});};
+    im.src=it.url;
+  });
+}
+function runOne(it){
+  var c=cfg();it.state='run';paint(it);
+  process(it,c).then(function(r){
+    if(r.err){it.state='err';it.msg=r.err;}
+    else{if(it.out)URL.revokeObjectURL(it.out);it.out=r.blob;it.outSize=r.blob.size;it.ow=r.w;it.oh=r.h;it.state='done';it.type=r.type;}
+    paint(it);renderList();
+  });
+}
+function runAll(){
+  var c=cfg(),list=items.filter(function(x){return x.state!=='done';});
+  if(!list.length){toast('都已经处理完了');return;}
+  var i=0,done=0;
+  $('prog').textContent='0 / '+list.length;
+  function next(){
+    if(i>=list.length)return Promise.resolve();
+    var it=list[i++];it.state='run';paint(it);
+    return process(it,c).then(function(r){
+      if(r.err){it.state='err';it.msg=r.err;}else{
+        if(it.out)URL.revokeObjectURL(it.out);it.out=r.blob;it.outSize=r.blob.size;it.ow=r.w;it.oh=r.h;it.state='done';}
+      done++;$('prog').textContent=done+' / '+list.length;paint(it);renderList();
+    }).then(next);
+  }
+  /* 串行而不是并发：手机内存小，两张 2400px 图同时在画布上就可能被系统杀掉 */
+  next();
+}
+function dl(it){
+  if(!it.out){toast('这张还没处理');return;}
+  var ext=it.type==='image/png'?'png':it.type==='image/webp'?'webp':'jpg';
+  var base=it.name.replace(/\.[^.]+$/,'');
+  var a=E('a');a.href=URL.createObjectURL(it.out);a.download=base+'_'+it.ow+'x'+it.oh+'.'+ext;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(a.href);},9000);
+}
+/* 二级确认 */
+var askCb=null;
+function ask(t,lines,ok,cb){$('askt').textContent=t;var b=$('askb');b.innerHTML='';
+  (lines||[]).forEach(function(x){var d=E('div','l');d.innerHTML=x;b.appendChild(d);});
+  $('askok').textContent=ok||'确认';askCb=cb;$('ask').style.display='flex';}
+function closeAsk(){$('ask').style.display='none';askCb=null;}
+$('askno').onclick=closeAsk;$('askok').onclick=function(){var f=askCb;closeAsk();if(f)f();};
+$('ask').onclick=function(e){if(e.target===this)closeAsk();};
+
+$('bPick').onclick=function(){$('fImg').click();};
+$('drop').onclick=function(){$('fImg').click();};
+$('fImg').onchange=function(e){addFiles(e.target.files);e.target.value='';};
+['dragenter','dragover'].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();$('drop').className='on';});});
+['dragleave','drop'].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();$('drop').className='';});});
+document.addEventListener('drop',function(e){if(e.dataTransfer&&e.dataTransfer.files)addFiles(e.dataTransfer.files);});
+$('bRun').onclick=runAll;
+$('bAll').onclick=function(){var d=items.filter(function(x){return x.state==='done';});
+  if(!d.length){toast('先点「开始处理」');return;}
+  ask('连续下载 '+d.length+' 张？',['浏览器可能弹「允许下载多个文件」，请点允许。',
+    '<b>手机上一次下载太多张容易被拦</b>，建议先只留几张再下载，或用「分享」逐张存相册。'],'确认下载',function(){
+    d.forEach(function(it,i){setTimeout(function(){dl(it);},i*450);});});};
+$('bClr').onclick=function(){if(!items.length)return;
+  ask('清空列表？',['<b>'+items.length+'</b> 张图片和处理结果都会丢掉（原图还在你手机里）。'],'确认清空',function(){
+    items.forEach(function(it){if(it.url)URL.revokeObjectURL(it.url);if(it.out)URL.revokeObjectURL(it.out);});
+    items=[];renderList();$('prog').textContent='';});};
+['mx','q','fmt','wm','pos','wfs','wop'].forEach(function(k){$(k).onchange=function(){
+  var d=items.filter(function(x){return x.state==='done';});
+  if(d.length)toast('已改设置，'+d.length+' 张可点「重做」按新设置再来一遍',3600);};});
+
+(function boot(){
+  var webp=(function(){var c=document.createElement('canvas');try{return c.toDataURL('image/webp').indexOf('data:image/webp')===0;}catch(e){return false;}})();
+  if(!webp)$('fmt').querySelector('option[value="image/webp"]').disabled=true;
+  var mem=navigator.deviceMemory?navigator.deviceMemory+'GB':(navigator.hardwareConcurrency?navigator.hardwareConcurrency+'核':'未知');
+  $('env').textContent='本机：'+mem+'　WebP：'+(webp?'支持':'不支持（已自动禁用）')+'　画布上限约 '+(MAXPX/1e6).toFixed(0)+'M px　全部本地处理，不上传';
+  if(/MicroMessenger|WXwork/i.test(navigator.userAgent||''))setTimeout(function(){
+    ask('你在微信里打开的',['微信里<b>存不了下载的图片</b>。请点右上角「···」→「用其他应用打开」→ 选浏览器再处理。'],'知道了');},600);
+  renderList();
+})();
+window.__app={get items(){return items;},addFiles:function(a){addFiles(a);},cfg:cfg,runAll:runAll,ask:ask,process:process};
+})();
+</script>
+</body>
+</html>

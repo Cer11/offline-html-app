@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>单文件离线小应用 · 起点模板</title>
+<!-- 打印纸张尺寸由脚本按当前版式改写；这里只放默认值 -->
+<style>
+:root{--ink:#22282b;--mut:#6f7a76;--line:#dfe4e0;--acc:#2f5d58;--warn:#a63a2b;--paper:#fbfbf8}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:#23282a;color:var(--ink);
+  font-family:"Microsoft YaHei","微软雅黑","PingFang SC",sans-serif;
+  -webkit-text-size-adjust:100%;text-size-adjust:100%}
+button{font-family:inherit}
+/* 没开 JavaScript 时唯一能看到的东西 */
+#nojs{display:block;background:#fff8ec;color:#3a3226;font-size:16px;line-height:2;padding:26px 22px;border-bottom:3px solid #c9a227}
+#nojs b{color:#1d2a22}
+#bar{position:sticky;top:0;z-index:60;background:#1a1f1b;color:#eef1f5;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 10px;font-size:13px}
+.btn{background:#2d342e;color:#eef1f5;border:1px solid #465046;border-radius:6px;padding:7px 12px;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn.pri{background:var(--acc);border-color:#5c8d86;font-weight:600}
+.btn.gold{background:#6b5314;border-color:#a5842f}
+.btn.warn{background:#4a2b26;border-color:#7c4a41;color:#f2dad3}
+.in{background:#0f1310;color:#eef1f5;border:1px solid #465046;border-radius:6px;padding:6px;font-size:13px}
+#stage{padding:14px 14px 90px;overflow:auto}
+#wrap{transform-origin:top left}
+/* 画布：A4 竖版 150dpi ＝ 1240×1754 CSS px；导出 scale 2 正好 300dpi */
+#board{position:relative;overflow:hidden;background:var(--paper);width:1240px;height:1754px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+#lay{position:absolute;inset:0;display:flex;flex-direction:column;z-index:1}
+.b-head{flex:none;padding:64px 64px 40px;color:#fff;
+  background:linear-gradient(135deg,#2f5d58 0%,#4c7d6f 55%,#8fae94 100%)}
+.b-head h1{margin:0;font-size:64px;letter-spacing:6px;font-weight:600}
+.b-head p{margin:14px 0 0;font-size:22px;letter-spacing:4px;opacity:.9}
+.b-rows{flex:1;padding:0 64px;display:flex;flex-direction:column;gap:22px}
+.row{display:flex;align-items:center;gap:22px;border-bottom:1px solid var(--line);padding-bottom:20px}
+.row .tx{flex:1;min-width:0}
+.row .t{font-size:26px;letter-spacing:1px}
+.row .s{font-size:16px;color:var(--mut);margin-top:6px;letter-spacing:.5px}
+.row .sq{flex:none;width:150px;height:150px;background:rgba(255,255,255,.5);border:1.5px dashed #b7c6bf;overflow:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#9db0a6;font-size:12px}
+.row .sq img{width:100%;height:100%;object-fit:cover;display:block}
+.b-foot{flex:none;padding:26px 64px 40px;font-size:15px;color:var(--mut);letter-spacing:1px}
+#board [data-e]:hover{outline:1.5px dashed rgba(47,93,88,.55);outline-offset:1px}
+body.capturing #board *{outline:none!important}
+/* 覆盖层 */
+#mask{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:70;display:none}
+#sheet{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(560px,100%);background:#fff;
+  border-radius:14px 14px 0 0;z-index:80;display:none;padding:14px 14px calc(16px + env(safe-area-inset-bottom))}
+#sheet h4{margin:0 0 10px;font-size:13px;color:#7a828e;font-weight:500;display:flex;justify-content:space-between;align-items:center}
+#sheet .row2{display:flex;gap:9px;align-items:center}
+#sheet .big{flex:1;font-size:19px;padding:12px 11px;border:1.6px solid #c9cfd8;border-radius:9px;width:100%;font-family:inherit;background:#fff;color:#111}
+#sheet .acts{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+#sheet .acts .btn{background:#eef1f5;color:#222;border-color:#d3d9e2;min-height:44px}
+#sheet .acts .btn.dg{color:var(--warn);border-color:#e2c3bc}
+#sheet .acts .btn.pri{background:var(--acc);color:#fff}
+#sheet .tip{font-size:13px;color:#7a828e;line-height:1.8;margin-bottom:9px}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:rgba(20,22,26,.94);color:#fff;
+  font-size:14px;padding:11px 18px;border-radius:22px;z-index:95;display:none;max-width:86vw;text-align:center}
+#busy{position:fixed;inset:0;background:rgba(255,255,255,.85);z-index:99;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#333}
+#busy .sp{width:34px;height:34px;border:3.5px solid #ddd;border-top-color:var(--acc);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* 破坏性操作的二级确认：不用原生 confirm，微信等内核经常吞掉它 */
+#ask{position:fixed;inset:0;z-index:130;background:rgba(18,22,19,.74);display:none;align-items:center;justify-content:center;padding:18px}
+#ask .box{background:#fff;border-radius:14px;max-width:440px;width:100%;padding:22px 20px}
+#ask h3{margin:0 0 12px;font-size:19px;color:var(--warn);letter-spacing:1px}
+#ask .l{font-size:14.5px;line-height:1.95;color:#3a4640}
+#ask .l+.l{margin-top:9px}
+#ask .l b{color:var(--warn)}
+#ask .acts{display:flex;gap:10px;margin-top:20px}
+#ask .acts .btn{flex:1;padding:14px 8px;font-size:16px;border-radius:10px;background:#eef2ef;color:#333;border:1px solid #cfd6d0}
+#ask .acts .btn.dg{background:var(--warn);color:#fff;border-color:var(--warn);font-weight:600}
+@media (max-width:760px){#bar{font-size:12px;padding:6px}.btn{padding:8px 11px;font-size:12.5px}#stage{padding:8px 8px 120px}}
+@media print{
+  #bar,#mask,#sheet,#toast,#busy,#ask,#nojs,#pv{display:none!important}
+  html,body{background:#fff;margin:0;padding:0;overflow:visible}
+  #stage{padding:0;margin:0;overflow:visible}
+  #wrap{transform:none!important;width:auto!important;height:auto!important}
+  /* 1240px 画布 > A4 的 794px：不缩就溢到第二页。0.638 让它正好铺满一页 */
+  #board{box-shadow:none;margin:0;zoom:.638}
+  #board,#board *{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
+}
+</style>
+<style id="pagecss">@page{size:210mm 297mm;margin:0}</style>
+</head>
+<body>
+
+<div id="nojs">
+  <b class="t1">这个小应用需要 JavaScript 才能用</b><br>
+  你现在多半是在<b>微信里直接点开</b>了文件，或者被「快速预览」打开了——那样只能看，不能编辑。<br>
+  <b class="t2">请改成下面这样打开：</b><br>
+  · 苹果 iPhone：右上角「···」→「用其他应用打开」→ <b>Safari</b>（或 Chrome／夸克／Edge）<br>
+  · 安卓手机：「···」→「用其他应用打开」→ <b>浏览器</b>（Chrome／Edge／夸克／UC）<br>
+  · 电脑：右键文件 →「打开方式」→ Chrome／Edge／Safari
+</div>
+<script>document.getElementById('nojs').style.display='none';</script>
+
+<div id="bar">
+  <button class="btn pri" id="bUndo">撤销</button>
+  <button class="btn warn" id="bReset">恢复默认</button>
+  <select class="in" id="scSel"><option value="2">A4 300dpi</option><option value="3">A4 450dpi</option><option value="1">屏幕 150dpi</option></select>
+  <button class="btn gold" id="bPng">导出图片</button>
+  <button class="btn" id="bPrj">保存工程</button>
+  <button class="btn" id="bOpen">打开工程</button>
+  <button class="btn" id="bPrint">打印</button>
+  <button class="btn" id="zOut">－</button><button class="btn" id="zIn">＋</button><button class="btn" id="zFit">适应</button>
+  <span id="env" style="font-size:12px;color:#8b968b"></span>
+</div>
+
+<div id="stage"><div id="wrap"><div id="board"></div></div></div>
+
+<div id="mask"></div><div id="sheet"></div><div id="toast"></div>
+<div id="busy"><div class="sp"></div><div id="busyt">请稍候…</div></div>
+<div id="ask"><div class="box"><h3 id="askt">确定吗？</h3><div id="askb"></div>
+  <div class="acts"><button class="btn" id="askno">取消</button><button class="btn dg" id="askok">确认</button></div></div></div>
+
+<input type="file" id="fImg" accept="image/*" style="display:none">
+<input type="file" id="fPrj" accept=".html,.json,text/html,application/json" style="display:none">
+
+<script>
+/* ===== 依赖：html2canvas（发布前必须内联进本文件，见 references/packaging.md） ===== */
+/*__HTML2CANVAS__*/
+
+/* ===== 引擎（ES5：老安卓内核也能跑） ===== */
+(function(){
+'use strict';
+var KEY='starter_app_v1';
+var W=1240, H=1754;
+var $=function(i){return document.getElementById(i);};
+var board=$('board'), wrap=$('wrap'), sheet=$('sheet'), mask=$('mask');
+function E(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
+function mkbtn(t,c,f){var b=E('button',/\bbtn\b/.test(c||'')?c:('btn '+(c||'')).trim(),t);b.onclick=f;return b;}
+function toast(m,t){var x=$('toast');x.textContent=m;x.style.display='block';clearTimeout(x._t);x._t=setTimeout(function(){x.style.display='none';},t||2600);}
+function busy(m){$('busyt').textContent=m||'请稍候…';$('busy').style.display='flex';}
+function unbusy(){$('busy').style.display='none';}
+function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,v);return true;}catch(e){return false;}}
+function storageOK(){try{localStorage.setItem(KEY+'_p','1');localStorage.removeItem(KEY+'_p');return true;}catch(e){return false;}}
+
+/* ---------- 状态 ---------- */
+function defaults(){return {
+  title:'标题文字', sub:'副标题 · 一句话说明',
+  rows:[{t:'第一条',s:'说明文字，点它就能改',img:null},
+        {t:'第二条',s:'右边的方块是图片位，点方块换图',img:null},
+        {t:'第三条',s:'所有内容两个设备间靠「保存工程」带走',img:null}],
+  foot:'底部小字 · 联系方式 / 日期 / 备注'
+};}
+var state=null;
+function gp(p){var c=state;for(var i=0;i<p.length;i++){if(c==null)return undefined;c=c[p[i]];}return c;}
+function sp(p,v){var c=state;for(var i=0;i<p.length-1;i++)c=c[p[i]];c[p[p.length-1]]=v;}
+function de(o){return JSON.stringify(o);}
+var hist=[];
+function snap(){var s=JSON.stringify(state);if(hist[hist.length-1]===s)return;hist.push(s);
+  var t=0;hist.forEach(function(x){t+=x.length;});while(hist.length>12||t>4000000){t-=(hist.shift()||'').length;}}
+function undo(){while(hist.length&&hist[hist.length-1]===JSON.stringify(state))hist.pop();
+  if(!hist.length){toast('没有可撤销的操作');return;}state=JSON.parse(hist.pop());render();save();toast('已撤销');}
+
+/* ---------- 渲染 ---------- */
+function render(){
+  board.style.width=W+'px';board.style.height=H+'px';board.innerHTML='';
+  var lay=E('div');lay.id='lay';
+  var hd=E('div','b-head');
+  var h1=E('h1',null,state.title);h1.dataset.e=de({p:['title'],k:'text'});hd.appendChild(h1);
+  var p1=E('p',null,state.sub);p1.dataset.e=de({p:['sub'],k:'text'});hd.appendChild(p1);
+  lay.appendChild(hd);
+  var bx=E('div','b-rows');
+  state.rows.forEach(function(r,i){
+    var row=E('div','row');
+    var tx=E('div','tx');
+    var t=E('div','t',r.t);t.dataset.e=de({p:['rows',i,'t'],k:'text'});
+    var s=E('div','s',r.s);s.dataset.e=de({p:['rows',i,'s'],k:'text'});
+    tx.appendChild(t);tx.appendChild(s);row.appendChild(tx);
+    var q=E('div','sq');q.dataset.e=de({p:['rows',i],k:'img'});
+    if(r.img){var im=E('img');im.src=r.img;q.appendChild(im);}
+    else{q.appendChild(E('span',null,'点击加图'));q.appendChild(E('span',null,'150×150'));}
+    row.appendChild(q);bx.appendChild(row);
+  });
+  lay.appendChild(bx);
+  var ft=E('div','b-foot',state.foot);ft.dataset.e=de({p:['foot'],k:'text'});lay.appendChild(ft);
+  board.appendChild(lay);
+}
+
+/* ---------- 点选编辑 ---------- */
+var cur=null;
+board.addEventListener('click',function(ev){
+  var t=ev.target.closest('[data-e]');if(!t)return;
+  var o;try{o=JSON.parse(t.dataset.e);}catch(e){return;}
+  if(o.k==='text'||o.k==='img')openSheet(o);
+});
+function openSheet(o){
+  var v;try{v=gp(o.p);}catch(e){return;}
+  if(v===undefined){toast('数据异常，请刷新');return;}
+  cur=o;snap();sheet.style.display='block';sheet.innerHTML='';
+  var h=E('h4');h.appendChild(E('span',null,o.k==='img'?'图片':'文字'));
+  h.appendChild(mkbtn('完成','btn',closeSheet));sheet.appendChild(h);
+  if(o.k==='img'){
+    sheet.appendChild(E('div','tip','换图后自动压到最长边 900px。图片位是 150×150px（300dpi 出图请给 300×300px 正方形）。'));
+    var a=E('div','acts');
+    a.appendChild(mkbtn('选择图片 / 拍照','btn pri',pickImage));
+    if(v.img)a.appendChild(mkbtn('移除图片','btn',function(){v.img=null;after();}));
+    sheet.appendChild(a);mask.style.display='block';return;
+  }
+  var r=E('div','row2'),ni=E('input','big');ni.value=v;ni.placeholder='文字内容';r.appendChild(ni);sheet.appendChild(r);
+  var a2=E('div','acts');
+  a2.appendChild(mkbtn('保存','btn pri',function(){sp(o.p,ni.value);after();}));
+  a2.appendChild(mkbtn('清空','btn dg',function(){sp(o.p,'');after();}));
+  sheet.appendChild(a2);mask.style.display='block';
+  setTimeout(function(){ni.focus();ni.select();},60);
+}
+function after(){render();save();closeSheet();}
+function closeSheet(){sheet.style.display='none';mask.style.display='none';cur=null;}
+mask.onclick=closeSheet;
+
+/* ---------- 二级确认 ---------- */
+var askCb=null;
+function ask(title,lines,ok,cb){
+  closeSheet();$('askt').textContent=title;
+  var b=$('askb');b.innerHTML='';
+  (Array.isArray(lines)?lines:[lines]).forEach(function(t){if(!t)return;var d=E('div','l');d.innerHTML=t;b.appendChild(d);});
+  $('askok').textContent=ok||'确认';askCb=cb;$('ask').style.display='flex';
+}
+function closeAsk(){$('ask').style.display='none';askCb=null;}
+$('askno').onclick=closeAsk;
+$('askok').onclick=function(){var f=askCb;closeAsk();if(f)f();};
+$('ask').onclick=function(e){if(e.target===this)closeAsk();};
+$('bReset').onclick=function(){
+  ask('恢复默认内容？',
+    ['会丢弃<b>这台设备</b>上改过的全部文字和图片。','拿不准先「取消」，点「保存工程」存一份再操作。',
+     '按错了马上点<b>「撤销」</b>还能找回来。'],
+    '确认恢复默认',function(){snap();state=defaults();render();save();toast('已恢复默认　点「撤销」可退回');});
+};
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){closeAsk();closeSheet();}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}
+});
+
+/* ---------- 图片 ---------- */
+var imgTarget=null;
+function pickImage(){if(!cur)return;imgTarget=cur.p;$('fImg').click();}
+$('fImg').addEventListener('change',function(e){
+  var f=e.target.files[0];e.target.value='';if(!f||!imgTarget)return;
+  var tp=imgTarget;imgTarget=null;
+  shrink(f,function(d){var v=gp(tp);if(!v){toast('换图失败：找不到位置',3600);return;}v.img=d;after();toast('图片已替换');},
+    function(m){toast('换图失败：'+m,3600);});
+});
+function shrink(file,ok,err){
+  var fr=new FileReader();
+  fr.onerror=function(){err('无法读取文件');};
+  fr.onload=function(){
+    var im=new Image();
+    im.onerror=function(){err('不是有效图片');};
+    im.onload=function(){
+      var mx=900,w=im.width,h=im.height,s=Math.min(1,mx/Math.max(w,h));
+      w=Math.max(1,Math.round(w*s));h=Math.max(1,Math.round(h*s));
+      var c=document.createElement('canvas');c.width=w;c.height=h;
+      var g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,w,h);g.drawImage(im,0,0,w,h);
+      ok(c.toDataURL('image/jpeg',.86));
+    };
+    im.src=fr.result;
+  };
+  fr.readAsDataURL(file);
+}
+
+/* ---------- 存储 + 工程文件自包含 ---------- */
+var saveDeb=debSave();
+function debSave(){var t;return function(){clearTimeout(t);t=setTimeout(function(){
+  if(!lsSet(KEY,JSON.stringify(state)))toast('本机缓存已满（图片较多），请用「保存工程」备份',4600);},700);};}
+function save(){saveDeb();}
+function projectHTML(){
+  var c=document.documentElement.cloneNode(true);
+  var bd=c.querySelector('#board');if(bd)bd.innerHTML='';
+  ['#sheet','#askb','#toast'].forEach(function(s){var n=c.querySelector(s);if(n)n.innerHTML='';});
+  var pn=c.querySelector('#pv');if(pn&&pn.parentNode)pn.parentNode.removeChild(pn);      // 导出预览层是运行时产物
+  ['#mask','#busy','#toast','#ask','#nojs'].forEach(function(s){var n=c.querySelector(s);if(n)n.removeAttribute('style');});
+  var wp=c.querySelector('#wrap');if(wp)wp.removeAttribute('style');
+  var old=c.querySelector('#menu-state');if(old&&old.parentNode)old.parentNode.removeChild(old);
+  var tag=document.createElement('script');tag.type='application/json';tag.id='menu-state';
+  tag.textContent=JSON.stringify(state).replace(/<\//gi,'<\\/');
+  c.querySelector('head').appendChild(tag);
+  return '<!DOCTYPE html>\n'+c.outerHTML;
+}
+function extractState(txt){
+  var m=txt.match(/<script[^>]*id="menu-state"[^>]*>([\s\S]*?)<\/script>/i);
+  if(m)return JSON.parse(m[1].replace(/<\\\//gi,'</'));
+  var t=txt.replace(/^\s+/,'');if(t.charAt(0)==='{')return JSON.parse(t);
+  throw new Error('文件里找不到应用数据');
+}
+$('bPrj').onclick=function(){
+  busy('正在打包…');
+  setTimeout(function(){
+    try{var h=projectHTML();unbusy();
+      saveAs(new Blob([h],{type:'text/html;charset=utf-8'}),fname()+'.html');
+      toast('已保存 '+fname()+'.html（'+(new Blob([h]).size/1048576).toFixed(1)+' MB）　发到微信后记得用浏览器打开',6500);
+    }catch(e){unbusy();toast('保存失败：'+(e.message||e),4200);}
+  },40);
+};
+function fname(){var d=new Date(),p=function(n){return (n<10?'0':'')+n;};
+  return '小应用_'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes());}
+$('bOpen').onclick=function(){$('fPrj').click();};
+$('fPrj').addEventListener('change',function(e){
+  var f=e.target.files[0];e.target.value='';if(!f)return;
+  var fr=new FileReader();
+  fr.onload=function(){try{snap();state=extractState(fr.result);render();lsSet(KEY,JSON.stringify(state));toast('工程已载入');}
+    catch(x){toast('无法读取该文件：'+(x.message||x),4200);}};
+  fr.onerror=function(){toast('文件读取失败');};
+  fr.readAsText(f);
+});
+function saveAs(bl,name){var a=E('a');a.href=URL.createObjectURL(bl);a.download=name;document.body.appendChild(a);a.click();a.remove();}
+
+/* ---------- 导出图片 ---------- */
+$('bPng').onclick=function(){exportPNG(parseFloat($('scSel').value));};
+/* html2canvas 遇到"高度被取整为 0 的渐变元素"会在 createPattern 抛错：先中和 */
+function neutralize(){
+  var hit=[];
+  board.querySelectorAll('*').forEach(function(e){
+    if(e.getBoundingClientRect().height>=1)return;
+    var cs=getComputedStyle(e);
+    if(cs.backgroundImage&&cs.backgroundImage!=='none'){hit.push([e,e.style.backgroundImage]);e.style.backgroundImage='none';}
+  });
+  return hit;
+}
+function shoot(scale){
+  var base={backgroundColor:'#fbfbf8',width:W,height:H,x:0,y:0,scrollX:0,scrollY:0,
+    windowWidth:W,windowHeight:H,logging:false,useCORS:true,imageTimeout:25000};
+  var tries=[Object.assign({scale:scale},base),Object.assign({scale:scale},base,{foreignObjectRendering:true}),
+             Object.assign({scale:1},base),Object.assign({scale:1},base,{foreignObjectRendering:true})];
+  var i=0,p=Promise.reject(new Error('begin'));
+  tries.forEach(function(o,n){p=p.catch(function(){i=n;return window.html2canvas(board,o);});});
+  return p;
+}
+/* 老 Safari/部分安卓内核没有 toBlob；大图内存不足时按 1 倍重试 */
+function cvBlob(cv,cb){
+  if(cv.toBlob){try{cv.toBlob(function(bl){cb(bl||null);},'image/png');return;}catch(e){}}
+  try{var u=cv.toDataURL('image/png'),s=atob(u.split(',')[1]),a=new Uint8Array(s.length);
+    for(var i=0;i<s.length;i++)a[i]=s.charCodeAt(i);cb(new Blob([a],{type:'image/png'}));}catch(e){cb(null);}
+}
+function exportPNG(scale){
+  if(!window.html2canvas){toast('这个文件还没内联 html2canvas，导出不可用　见 packaging.md 的发布步骤',5200);return;}
+  closeSheet();
+  busy('正在生成图片…');document.body.classList.add('capturing');
+  var old=wrap.style.transform;wrap.style.transform='none';void wrap.offsetWidth;
+  var fixed=neutralize();
+  setTimeout(function(){
+    shoot(scale).then(function(cv){
+      wrap.style.transform=old;document.body.classList.remove('capturing');
+      fixed.forEach(function(p){p[0].style.backgroundImage=p[1];});
+      cvBlob(cv,function(bl){
+        unbusy();
+        if(!bl){if(scale>1){toast('内存吃不下 300dpi，正在按 150dpi 重试…',3200);setTimeout(function(){exportPNG(1);},600);}
+          else toast('导出失败，请改用「打印」→ 另存为 PDF',4200);return;}
+        showPv(bl,'导出_'+cv.width+'x'+cv.height+'.png',cv.width,cv.height);
+      });
+    }).catch(function(e){
+      wrap.style.transform=old;document.body.classList.remove('capturing');
+      fixed.forEach(function(p){p[0].style.backgroundImage=p[1];});
+      unbusy();toast('导出失败：'+(e&&e.message||e)+'　请改用「打印」→ 另存为 PDF',6000);
+    });
+  },80);
+}
+var pv=null;
+function showPv(bl,name,w,h){
+  if(!pv){pv=E('div');pv.id='pv';pv.style.cssText='position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.87);display:none;flex-direction:column;align-items:center;justify-content:center;padding:12px';document.body.appendChild(pv);}
+  var url=URL.createObjectURL(bl);pv.innerHTML='';
+  var info=E('div');info.style.cssText='color:#fff;font-size:13px;margin-bottom:9px;text-align:center;line-height:1.8';
+  info.innerHTML='<b>'+name+'</b>　'+w+'×'+h+' px<br><span style="color:#b9c2cc">手机：长按图片 → 存相册／发送　　电脑：右键另存为</span>';
+  pv.appendChild(info);
+  var im=E('img');im.src=url;im.style.cssText='max-width:100%;max-height:62vh;object-fit:contain;background:#fff;border-radius:6px';pv.appendChild(im);
+  var a=E('div');a.style.cssText='display:flex;gap:9px;margin-top:13px;flex-wrap:wrap;justify-content:center';
+  a.appendChild(mkbtn('下载 PNG','btn pri',function(){var x=E('a');x.href=url;x.download=name;document.body.appendChild(x);x.click();x.remove();}));
+  a.appendChild(mkbtn('关闭','btn',function(){pv.style.display='none';URL.revokeObjectURL(url);}));
+  pv.appendChild(a);pv.style.display='flex';
+}
+$('bPrint').onclick=function(){closeSheet();render();
+  toast('打印设置：纸张 A4／边距「无」／缩放「100%」',5000);
+  setTimeout(function(){window.print();},300);};
+
+/* ---------- 缩放 ---------- */
+function setZoom(z){z=Math.max(.12,Math.min(1.5,z));curZ=z;wrap.style.transform='scale('+z+')';
+  wrap.style.width=(W*z)+'px';wrap.style.height=(H*z)+'px';lsSet(KEY+'_z',z);}
+var curZ=1;
+function fit(){setZoom(Math.min(1,(window.innerWidth-28)/W));}
+$('zIn').onclick=function(){setZoom(curZ+.1);};
+$('zOut').onclick=function(){setZoom(curZ-.1);};
+$('zFit').onclick=fit;
+$('bUndo').onclick=undo;
+window.addEventListener('resize',function(){if(window.innerWidth<900)fit();});
+
+/* ---------- 启动 ---------- */
+(function boot(){
+  var emb=null,src='默认内容';
+  try{var t=document.getElementById('menu-state');if(t&&t.textContent.trim())emb=JSON.parse(t.textContent.replace(/<\\\//gi,'</'));}catch(e){}
+  if(emb){state=emb;src='工程文件';}
+  else{var ls=lsGet(KEY);if(ls){try{state=JSON.parse(ls);src='本机自动保存';}catch(e){state=defaults();}}else state=defaults();}
+  if(!state||!state.rows)state=defaults();
+  render();
+  if(window.innerWidth<900)fit();else{var z=parseFloat(lsGet(KEY+'_z'));setZoom(isNaN(z)?.5:z);}
+  var ua=navigator.userAgent||'',b='浏览器';
+  if(/MicroMessenger|WXWork/i.test(ua))b='微信内置（存不了文件，请用浏览器打开）';
+  else if(/iPhone|iPad|iPod/i.test(ua))b='Safari/苹果';
+  else if(/EdgA?\/|Edge\//i.test(ua))b='Edge';
+  else if(/Chrome\//i.test(ua))b='Chrome';
+  $('env').textContent='环境：'+b+'　自动保存：'+(storageOK()?'可用':'不可用，请用保存工程');
+  if(src!=='默认内容')setTimeout(function(){toast('已载入'+src);},400);
+})();
+window.__app={get state(){return state;},set:function(s){state=s;render();},defaults:defaults,render:render,
+  exportPNG:exportPNG,projectHTML:projectHTML,extractState:extractState,ask:ask,fit:fit,storageOK:storageOK,
+  get hist(){return hist.map(function(x){return JSON.parse(x).title;});}};
+})();
+</script>
+</body>
+</html>

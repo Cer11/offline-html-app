@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<!-- profile: data -->
+<!-- 数据类应用骨架（已实测）：IndexedDB 主存 + localStorage 退路、CSV 导入导出(BOM)、JSON 备份、
+     分页、CSS 变形式响应式列表、二级确认、未启用 JS 兜底、环境自检行、A4 列表打印。
+     改这三处就能变成你自己的台账：
+       1) COLS 数组 + render/toCsv/importRows 里的字段名
+       2) openForm 里的 fld(...) 表单字段
+       3) 标题文案与 KEY（KEY 改结构时要 +1）-->
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>进货台账</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:#f3f5f3;color:#22282b;font-family:"Microsoft YaHei","微软雅黑","PingFang SC",sans-serif;
+  -webkit-text-size-adjust:100%;text-size-adjust:100%}
+button,input,select{font-family:inherit;font-size:16px}
+#nojs{display:block;background:#fff8ec;color:#3a3226;font-size:16px;line-height:2;padding:24px 20px;border-bottom:3px solid #c9a227}
+#hd{background:#1a1f1b;color:#fff;padding:12px 14px}
+#hd h1{margin:0;font-size:18px;letter-spacing:2px;font-weight:600}
+#hd .sub{font-size:12px;color:#9aa6a0;margin-top:4px}
+#bar{position:sticky;top:0;z-index:50;background:#243029;color:#eef1f5;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 10px}
+.btn{background:#2d342e;color:#eef1f5;border:1px solid #465046;border-radius:7px;padding:9px 12px;font-size:13.5px;cursor:pointer;white-space:nowrap}
+.btn.pri{background:#2f5d58;border-color:#5c8d86;font-weight:600}
+.btn.gd{background:#6b5314;border-color:#a5842f}
+.btn.dg{background:#4a2b26;border-color:#7c4a41;color:#f2dad3}
+.in{background:#fff;color:#111;border:1px solid #c9cfd8;border-radius:7px;padding:9px 10px}
+#sum{display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px 14px;background:#e8eee9;font-size:13.5px;color:#3a4640}
+#sum b{font-size:16px;color:#1d2a22}
+#list{padding:8px 10px 90px}
+.card{background:#fff;border-radius:10px;padding:11px 12px;margin-bottom:9px;box-shadow:0 1px 3px rgba(0,0,0,.07);display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+.card .d{font-size:13px;color:#7a828e}
+.card .n{font-size:16px;font-weight:600;flex:1;min-width:120px}
+.card .q{font-size:14px;color:#2f5d58}
+.card .m{font-size:16px;color:#a63a2b;font-variant-numeric:lining-nums tabular-nums}
+.card .s{font-size:12.5px;color:#8a929e;width:100%}
+.card .ops{width:100%;display:flex;gap:7px}
+.card .ops .btn{padding:6px 10px;font-size:12.5px;background:#eef1f5;color:#222;border-color:#d3d9e2}
+.card .ops .btn.x{color:#a63a2b;border-color:#e2c3bc;background:#fbf1ef}
+td .btn,.card .btn{padding:8px 14px;font-size:13px;min-height:40px;background:#eef1f5;color:#222;border-color:#d3d9e2}
+td .btn.x,.card .btn.x{color:#a63a2b;border-color:#e2c3bc;background:#fbf1ef}
+table{width:100%;border-collapse:collapse;background:#fff}
+th,td{border-bottom:1px solid #e6e9e6;padding:8px 6px;font-size:13.5px;text-align:left}
+th{background:#eef2ee;font-weight:600;position:sticky;top:0}
+td.num{text-align:right;font-variant-numeric:lining-nums tabular-nums}
+#empty{padding:40px 14px;text-align:center;color:#8a929e;font-size:15px;line-height:2}
+#fmask{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;display:none}
+#form{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(620px,100%);background:#fff;border-radius:14px 14px 0 0;z-index:70;display:none;padding:14px 14px calc(16px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
+#form h4{margin:0 0 12px;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+#form .g{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+#form label{display:block;font-size:12.5px;color:#7a828e;margin-bottom:3px}
+#form .full{grid-column:1/-1}
+#form input,#form select{width:100%}
+#form .acts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+#form .acts .btn{flex:1;min-height:46px;background:#eef1f5;color:#222;border-color:#d3d9e2}
+#form .acts .btn.pri{background:#2f5d58;color:#fff}
+#form .acts .btn.dg{background:#a63a2b;color:#fff;border-color:#a63a2b}
+#ask{position:fixed;inset:0;z-index:130;background:rgba(18,22,19,.74);display:none;align-items:center;justify-content:center;padding:18px}
+#ask .box{background:#fff;border-radius:14px;max-width:440px;width:100%;padding:22px 20px}
+#ask h3{margin:0 0 12px;font-size:18px;color:#a63a2b}
+#ask .l{font-size:14.5px;line-height:1.95;color:#3a4640}
+#ask .acts{display:flex;gap:10px;margin-top:20px}
+#ask .acts .btn{flex:1;min-height:46px;background:#eef2ef;color:#333;border:1px solid #cfd6d0}
+#ask .acts .btn.dg{background:#a63a2b;color:#fff;border-color:#a63a2b;font-weight:600}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:rgba(20,22,26,.94);color:#fff;font-size:14px;padding:11px 18px;border-radius:22px;z-index:140;display:none;max-width:86vw;text-align:center}
+#env{padding:8px 14px;font-size:12px;color:#7a828e;background:#e8eee9}
+@media (min-width:820px){#list{padding:12px 18px 90px}}
+/* 窄屏：同一份 table DOM 用 CSS 变形成卡片，不用 JS 判断视口渲染两套结构 */
+@media (max-width:819px){
+  table,thead,tbody,tr,td{display:block;width:auto}
+  thead{display:none}
+  tbody tr{background:#fff;border-radius:10px;padding:10px 12px;margin:0 0 9px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+  td{border:0;padding:2px 0;font-size:15px}
+  td[data-l]::before{content:attr(data-l) "　";color:#8a929e;font-size:12.5px}
+  td:nth-child(2){font-size:17px;font-weight:600}
+  td:nth-child(5){color:#a63a2b;font-weight:600}
+  td:last-child{display:flex;gap:8px;margin-top:8px}
+  td:last-child .btn{padding:8px 14px;min-height:40px}
+}
+@media print{
+  #hd,#bar,#sum,#fmask,#form,#ask,#toast,#env,#nop{display:none!important}
+  html,body{background:#fff}
+  #list{padding:0}
+  .card{box-shadow:none;border-bottom:1px solid #ccc;border-radius:0;page-break-inside:avoid}
+  table{font-size:12px}
+  th{position:static;background:#eee}
+  @page{size:A4 portrait;margin:12mm}
+}
+</style>
+</head>
+<body>
+
+<div id="nojs"><b>这个台账需要 JavaScript 才能用。</b><br>
+  微信里直接点开只能看不能记。请点右上角「···」→「用其他应用打开」→ 选浏览器（Safari / Chrome / Edge / 夸克）。</div>
+<script>document.getElementById('nojs').style.display='none';</script>
+
+<div id="hd"><h1 id="shop">进货台账</h1><div class="sub">数据存在本机浏览器 · 换设备请用「导出备份」带走文件</div></div>
+
+<div id="bar">
+  <button class="btn pri" id="bAdd">＋ 记一笔</button>
+  <input class="in" id="q" placeholder="搜品名/供应商" style="flex:1;min-width:120px">
+  <select class="in" id="mon"></select>
+  <button class="btn" id="bCsv">导出 CSV</button>
+  <button class="btn" id="bImp">导入 CSV</button>
+  <button class="btn" id="bBak">导出备份</button>
+  <button class="btn" id="bRes">导入备份</button>
+  <button class="btn gd" id="bPrt">打印对账单</button>
+  <button class="btn dg" id="bClr">清空</button>
+</div>
+<div id="sum"></div>
+<div id="list"></div>
+<div id="env"></div>
+
+<div id="fmask"></div>
+<div id="form"></div>
+<div id="ask"><div class="box"><h3 id="askt"></h3><div id="askb"></div>
+  <div class="acts"><button class="btn" id="askno">取消</button><button class="btn dg" id="askok">确认</button></div></div></div>
+<div id="toast"></div>
+<input type="file" id="fCsv" accept=".csv,text/csv" style="display:none">
+<input type="file" id="fBak" accept=".json,application/json" style="display:none">
+
+<script>
+(function(){
+'use strict';
+var KEY='demo_ledger_v1', LS=KEY+'_ls';
+function $(i){return document.getElementById(i);}
+function E(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
+function btn(t,c,f){var b=E('button','btn'+(c?' '+c:''),t);b.onclick=f;return b;}
+function toast(m,t){var x=$('toast');x.textContent=m;x.style.display='block';clearTimeout(x._t);x._t=setTimeout(function(){x.style.display='none';},t||2400);}
+function num(v){var n=parseFloat(v);return isNaN(n)?0:n;}
+function money(n){return (Math.round(n*100)/100).toFixed(2);}
+function today(){var d=new Date(),p=function(n){return (n<10?'0':'')+n;};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
+
+/* ---------- 存储：优先 IndexedDB，失败退回 localStorage ---------- */
+var S={idb:false,db:null,rows:[],dead:false};
+function lsWritable(){try{localStorage.setItem(LS+'_p','1');localStorage.removeItem(LS+'_p');return true;}catch(e){return false;}}
+function saveRows(){ if(!S.idb){ try{localStorage.setItem(LS,JSON.stringify(S.rows));S.dead=false;}catch(e){S.dead=true;} } }
+/* 存储状态要说实话：说"已保存"其实没落盘，是最糟的一种 bug */
+function setEnv(){
+  $('env').textContent = S.idb? '存储：IndexedDB 可用'
+    : (S.dead||!lsWritable()? '存储：本机存不住（无痕模式或浏览器禁用存储）　记录只在这次打开里有效，务必用「导出备份」带走'
+       : '存储：IndexedDB 不可用，已退回 localStorage（容量小、iOS 可能也禁用，请勤用「导出备份」）');
+}
+function savedToast(){ toast(S.dead?'已记在当前页面里——这台设备存不住，请马上「导出备份」':'已保存',S.dead?6500:2400); }
+function idbOpen(cb){
+  try{
+    var q=indexedDB.open(KEY,1);
+    q.onupgradeneeded=function(){try{q.result.createObjectStore('rows',{keyPath:'id'});}catch(e){}};
+    q.onsuccess=function(){S.db=q.result;S.idb=true;cb(true);};
+    q.onerror=function(){cb(false);};
+    setTimeout(function(){if(!S.idb)cb(false);},3000);
+  }catch(e){cb(false);}
+}
+function idbAll(cb){try{var r=S.db.transaction('rows','readonly').objectStore('rows').getAll();
+  r.onsuccess=function(){cb(r.result||[]);};r.onerror=function(){cb(null);};}catch(e){cb(null);}}
+function idbPut(row,cb){try{var t=S.db.transaction('rows','readwrite');t.objectStore('rows').put(row);
+  t.oncomplete=function(){cb(true);};t.onerror=function(){cb(false);};}catch(e){cb(false);};}
+function idbDel(id,cb){try{var t=S.db.transaction('rows','readwrite');t.objectStore('rows').delete(id);
+  t.oncomplete=function(){cb(true);};t.onerror=function(){cb(false);};}catch(e){cb(false);};}
+function idbBulk(rows,cb){try{var t=S.db.transaction('rows','readwrite'),s=t.objectStore('rows');
+  rows.forEach(function(x){s.put(x);});t.oncomplete=function(){cb(true);};t.onerror=function(){cb(false);};}catch(e){cb(false);};}
+
+/* 调用方已经把记录放进 S.rows，这里只负责落盘；退路里再 push 一次就会存成两条 */
+function persistAdd(row,cb){ if(S.idb){idbPut(row,function(ok){ if(ok){cb(true);} else {S.idb=false;saveRows();cb(true);} });}
+  else {saveRows();cb(true);} }
+function persistDel(id,cb){ if(S.idb){idbDel(id,function(ok){cb(ok);});}
+  else {S.rows=S.rows.filter(function(r){return r.id!==id;});saveRows();cb(true);} }
+function persistAll(cb){ if(S.idb){idbAll(function(rs){if(rs===null){toast('读取失败',3200);cb([]);}else cb(rs);});}
+  else {try{cb(JSON.parse(localStorage.getItem(LS)||'[]'));}catch(e){cb([]);}} }
+function replaceAll(rows,cb){ if(S.idb){idbBulk(rows,function(ok){cb(ok);});}
+  else {S.rows=rows;saveRows();cb(true);} }
+
+/* ---------- CSV ---------- */
+function csvCell(v){v=(v==null?'':''+v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
+function toCsv(rows){
+  var head=['日期','品名','数量','单位','单价','金额','供应商','备注'];
+  var out=[head.join(',')];
+  rows.forEach(function(r){out.push([r.d,r.n,r.q,r.u,r.p,r.m,r.s,r.b].map(csvCell).join(','));});
+  return '\uFEFF'+out.join('\r\n');            /* BOM：Excel 才不乱码 */
+}
+function parseCsv(txt){
+  txt=txt.replace(/^\uFEFF/,'');
+  var sep=(txt.indexOf('\t')>=0&&txt.indexOf(',')<0)?'\t':',';
+  var rows=[],row=[],cur='',q=false;
+  for(var i=0;i<txt.length;i++){var c=txt.charAt(i);
+    if(q){ if(c==='"'){ if(txt.charAt(i+1)==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else if(c==='"')q=true;
+    else if(c===sep){row.push(cur);cur='';}
+    else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur='';}
+    else if(c!=='\r')cur+=c;}
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  return rows.filter(function(r){return r.join('').trim()!=='';});
+}
+function colIdx(head,name,cands){ if(name in head) return head[name]; for(var i=0;i<cands.length;i++)if(cands[i] in head)return head[cands[i]];return -1;}
+
+/* ---------- 渲染 ---------- */
+var view={q:'',mon:'',page:0}, PAGE=100, printing=false;
+function monthOf(r){return (r.d||'').slice(0,7);}
+function filtered(){
+  var q=view.q.trim().toLowerCase();
+  return S.rows.filter(function(r){
+    if(view.mon&&monthOf(r)!==view.mon)return false;
+    if(!q)return true;
+    return ((r.n||'')+' '+(r.s||'')+' '+(r.b||'')).toLowerCase().indexOf(q)>=0;
+  }).sort(function(a,b){return (b.d||'').localeCompare(a.d||'')||(b.id-a.id);});
+}
+function render(){
+  setEnv();
+  var rows=filtered(), tot=0, mon={};
+  rows.forEach(function(r){tot+=num(r.m);var k=monthOf(r);mon[k]=(mon[k]||0)+num(r.m);});
+  var sm=$('sum');sm.innerHTML='';
+  sm.appendChild(E('span',null,'共 '+S.rows.length+' 笔　当前 '+rows.length+' 笔　合计 '));
+  sm.appendChild(E('b',null,'￥'+money(tot)));
+  var ms=Object.keys(mon).sort().reverse().slice(0,4);
+  ms.forEach(function(k){sm.appendChild(E('span',null,'　'+k+'：￥'+money(mon[k])));});
+  var sel=$('mon'), have={};S.rows.forEach(function(r){have[monthOf(r)]=1;});
+  var cur=sel.value, opts=['<option value="">全部月份</option>'];
+  Object.keys(have).sort().reverse().forEach(function(k){opts.push('<option value="'+k+'"'+(k===cur?' selected':'')+'>'+k+'</option>');});
+  sel.innerHTML=opts.join('');if(!cur&&view.mon)sel.value=view.mon;
+  var L=$('list');L.innerHTML='';
+  if(!rows.length){L.appendChild(E('div',null,S.rows.length?'没有符合条件的记录':'还没有记录，点上面「＋ 记一笔」开始'));L.firstChild.id='empty';return;}
+  /* 分页：一次塞几千行进 DOM，手机上会卡住甚至被系统杀掉 */
+  var pages=printing?1:Math.max(1,Math.ceil(rows.length/PAGE));
+  if(view.page>=pages)view.page=pages-1;if(view.page<0)view.page=0;
+  var shown=printing?rows:rows.slice(view.page*PAGE,(view.page+1)*PAGE);
+  var COLS=['日期','品名','数量','单价','金额','供应商','备注'];
+  var tb=E('table');
+  tb.innerHTML='<thead><tr>'+COLS.map(function(c){return '<th>'+c+'</th>';}).join('')+'<th></th></tr></thead>';
+  var tbody=E('tbody');
+  shown.forEach(function(r){
+    var tr=E('tr');
+    [r.d,r.n,(num(r.q)+' '+(r.u||'')),money(num(r.p)),money(num(r.m)),r.s||'',r.b||''].forEach(function(v,i){
+      var td=E('td',i>=3&&i<=4?'num':null,v==null?'':String(v));td.setAttribute('data-l',COLS[i]);tr.appendChild(td);});
+    var td=E('td');td.setAttribute('data-l','操作');
+    td.appendChild(btn('改','',function(){openForm(r);}));
+    td.appendChild(btn('删','x',function(){ask('删除这条记录？',['「'+r.n+'」￥'+money(num(r.m)),'删掉后无法恢复（除非你之前导出过备份）。'],'确认删除',function(){
+      persistDel(r.id,function(ok){if(!ok){toast('删除失败',3200);return;}S.rows=S.rows.filter(function(x){return x.id!==r.id;});render();toast('已删除');});
+    });}));
+    tr.appendChild(td);tbody.appendChild(tr);
+  });
+  tb.appendChild(tbody);L.appendChild(tb);
+  if(pages>1){
+    var pg=E('div','card');pg.style.justifyContent='center';pg.style.gap='12px';
+    pg.appendChild(btn('← 上一页','',function(){if(view.page>0){view.page--;render();}}));
+    pg.appendChild(E('span',null,'第 '+(view.page+1)+' / '+pages+' 页　共 '+rows.length+' 条'));
+    pg.appendChild(btn('下一页 →','',function(){if(view.page<pages-1){view.page++;render();}}));
+    L.appendChild(pg);
+  }
+}
+
+/* ---------- 表单 ---------- */
+function openForm(r){
+  var isNew=!r, row=r||{id:Date.now(),d:today(),n:'',q:'',u:'斤',p:'',m:'',s:'',b:''};
+  var f=$('form');f.innerHTML='';
+  var h=E('h4');h.appendChild(E('span',null,isNew?'记一笔':'修改记录'));h.appendChild(btn('关闭','',closeForm));f.appendChild(h);
+  var g=E('div','g');
+  function fld(lab,key,type,ph,opts){
+    g.appendChild(E('label',null,lab));
+    var i;
+    if(opts){i=E('select','in');opts.forEach(function(o){var op=E('option',null,o);op.value=o;i.appendChild(op);});}
+    else{i=E('input','in');i.type=type||'text';if(ph)i.placeholder=ph;i.value=row[key]==null?'':row[key];}
+    if(opts)i.value=row[key]||opts[0];
+    i.oninput=i.onchange=function(){row[key]=i.value;
+      if(key==='q'||key==='p'){row.m=money(num(row.q)*num(row.p));if(mEl)mEl.value=row.m;}};
+    g.appendChild(i);return i;
+  }
+  fld('日期','d','date');fld('品名','n','text','例：牛干巴');
+  fld('数量','q','number');fld('单位','u','text',null,['斤','公斤','箱','袋','份','个','瓶','把']);
+  fld('单价','p','number');var mEl=fld('金额（自动）','m','number');mEl.readOnly=true;mEl.value=money(num(row.q)*num(row.p));
+  fld('供应商','s','text');
+  var b=E('label','full','备注');g.appendChild(b);
+  var bi=E('input','in');bi.value=row.b||'';bi.oninput=function(){row.b=bi.value;};bi.className='in full';g.appendChild(bi);
+  f.appendChild(g);
+  var a=E('div','acts');
+  a.appendChild(btn('保存','pri',function(){
+    if(!(''+row.n).trim()){toast('品名不能为空',2600);return;}
+    row.m=money(num(row.q)*num(row.p));
+    var i=S.rows.findIndex(function(x){return x.id===row.id;});
+    if(i>=0)S.rows[i]=row;else S.rows.unshift(row);
+    persistAdd(row,function(ok){if(!ok){toast('保存失败：本机存不住，请点「导出备份」',4600);return;}closeForm();render();savedToast();});
+  }));
+  if(!isNew)a.appendChild(btn('删除','dg',function(){closeForm();
+    ask('删除这条记录？',['「'+row.n+'」￥'+money(num(row.m))],'确认删除',function(){
+      persistDel(row.id,function(){S.rows=S.rows.filter(function(x){return x.id!==row.id;});render();toast('已删除');});});}));
+  a.appendChild(btn('取消','',closeForm));f.appendChild(a);
+  f.style.display='block';$('fmask').style.display='block';
+}
+function closeForm(){$('form').style.display='none';$('fmask').style.display='none';}
+$('fmask').onclick=closeForm;
+
+/* ---------- 二级确认 ---------- */
+var askCb=null;
+function ask(t,lines,ok,cb){closeForm();$('askt').textContent=t;
+  var b=$('askb');b.innerHTML='';(lines||[]).forEach(function(x){var d=E('div','l');d.innerHTML=x;b.appendChild(d);});
+  $('askok').textContent=ok||'确认';askCb=cb;$('ask').style.display='flex';}
+function closeAsk(){$('ask').style.display='none';askCb=null;}
+$('askno').onclick=closeAsk;
+$('askok').onclick=function(){var f=askCb;closeAsk();if(f)f();};
+$('ask').onclick=function(e){if(e.target===this)closeAsk();};
+
+/* ---------- 导入导出 ---------- */
+function dl(txt,name,type){var bl=new Blob([txt],{type:type||'text/plain;charset=utf-8'});
+  var a=E('a');a.href=URL.createObjectURL(bl);a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(a.href);},8000);}
+function fname(ext){var d=new Date(),p=function(n){return (n<10?'0':'')+n;};
+  return '进货台账_'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes())+'.'+ext;}
+$('bAdd').onclick=function(){openForm(null);};
+$('bCsv').onclick=function(){var rows=filtered();if(!rows.length){toast('没有可导出的记录');return;}
+  dl(toCsv(rows),fname('csv'),'text/csv;charset=utf-8');toast('已导出 '+rows.length+' 条 CSV');};
+$('bBak').onclick=function(){dl(JSON.stringify({app:KEY,at:new Date().toISOString(),rows:S.rows},null,1),fname('json'),'application/json');
+  toast('已导出备份（'+S.rows.length+' 条）　换设备用「导入备份」');};
+$('bImp').onclick=function(){$('fCsv').click();};
+$('bRes').onclick=function(){$('fBak').click();};
+function importRows(rows,replace){
+  var t0=Date.now();
+  var add=rows.map(function(r,i){return {id:r.id||(Date.now()+i),d:r.d||today(),n:''+r.n,q:r.q,u:r.u||'',p:r.p,m:r.m,s:r.s||'',b:r.b||''};});
+  if(replace){replaceAll(add,function(ok){if(!ok){toast('写入失败',3200);return;}S.rows=add;render();toast('导入 '+add.length+' 条，用时 '+(Date.now()-t0)+'ms');});return;}
+  var merged=S.rows.concat(add);
+  replaceAll(merged,function(ok){if(!ok){toast('写入失败',3200);return;}S.rows=merged;render();
+    toast('导入 '+add.length+' 条，合计 '+merged.length+' 条，用时 '+(Date.now()-t0)+'ms');});
+}
+$('fCsv').onchange=function(e){var f=e.target.files[0];e.target.value='';if(!f)return;
+  var fr=new FileReader();
+  fr.onload=function(){try{
+    var g=parseCsv(fr.result), head={}, h=g.shift()||[];
+    h.forEach(function(x,i){head[(''+x).trim()]=i;});
+    var iD=colIdx(head,'日期',['date','日期']),iN=colIdx(head,'品名',['品名','名称','name','商品']),
+        iQ=colIdx(head,'数量',['数量','斤数','qty']),iU=colIdx(head,'单位',['单位']),
+        iP=colIdx(head,'单价',['单价','价格','price']),iM=colIdx(head,'金额',['金额','小计','total']),
+        iS=colIdx(head,'供应商',['供应商','商家','供货商']),iB=colIdx(head,'备注',['备注','说明']);
+    if(iN<0){toast('CSV 里找不到「品名」列',4200);return;}
+    var rows=g.map(function(r){var q=num(r[iQ]),p=num(r[iP]);
+      return {d:(iD>=0?r[iD]:'')||today(),n:(r[iN]||'').trim(),q:r[iQ]||'',u:iU>=0?(r[iU]||''):''
+        ,p:r[iP]||'',m:(iM>=0&&r[iM]!==''?r[iM]:money(q*p)),s:iS>=0?(r[iS]||''):'',b:iB>=0?(r[iB]||''):''};})
+      .filter(function(x){return x.n;});
+    if(!rows.length){toast('CSV 里没有数据行',3200);return;}
+    ask('导入 CSV？',['识别到 <b>'+rows.length+'</b> 条记录','将<b>追加</b>到现有台账（不覆盖已有记录）。'],
+      '确认导入',function(){importRows(rows,false);});
+  }catch(x){toast('解析失败：'+(x.message||x),4200);}};
+  fr.onerror=function(){toast('读取文件失败');};
+  fr.readAsText(f,'utf-8');
+};
+$('fBak').onchange=function(e){var f=e.target.files[0];e.target.value='';if(!f)return;
+  var fr=new FileReader();
+  fr.onload=function(){try{var o=JSON.parse(fr.result);var rows=o.rows||o;
+    if(!Array.isArray(rows)){toast('备份文件格式不对',3600);return;}
+    ask('导入备份？',['备份里有 <b>'+rows.length+'</b> 条记录','这会<b>覆盖</b>当前全部台账（当前 '+S.rows.length+' 条）。'],
+      '确认覆盖导入',function(){importRows(rows,true);});
+  }catch(x){toast('读取备份失败：'+(x.message||x),4200);}};
+  fr.readAsText(f);
+};
+$('bPrt').onclick=function(){
+  printing=true;render();                      /* 打印要出全部筛选结果，不能只印当前页 */
+  var done=function(){if(!printing)return;printing=false;render();};
+  window.addEventListener('afterprint',done,{once:true});
+  toast('打印设置：A4／边距默认即可',4200);
+  setTimeout(function(){window.print();setTimeout(done,1500);},260);};
+$('bClr').onclick=function(){if(!S.rows.length){toast('本来就是空的');return;}
+  ask('清空全部台账？',['当前 <b>'+S.rows.length+'</b> 条记录会全部删除，<b>无法撤销</b>。',
+    '强烈建议先点「导出备份」存一个文件再操作。'],'确认清空',function(){
+    var rows=S.rows.slice();
+    if(S.idb){try{var t=S.db.transaction('rows','readwrite');t.objectStore('rows').clear();
+      t.oncomplete=function(){S.rows=[];render();toast('已清空（备份文件里还能找回）');};t.onerror=function(){toast('清空失败');};}catch(e){toast('清空失败');}}
+    else {S.rows=[];saveRows();render();toast('已清空');}
+  });};
+$('q').oninput=function(){view.q=this.value;view.page=0;render();};
+$('mon').onchange=function(){view.mon=this.value;view.page=0;render();};
+/* 窄屏用 CSS 变形，不需要 JS 监听视口重渲染 */
+
+/* ---------- 启动 ---------- */
+function boot(){
+  idbOpen(function(ok){
+    if(!ok)S.idb=false;
+    setEnv();
+    persistAll(function(rows){S.rows=rows||[];render();
+      if(rows&&rows.length)setTimeout(function(){toast('已载入 '+rows.length+' 条记录');},300);});
+  });
+  var ua=navigator.userAgent||'';
+  if(/MicroMessenger|WXWork/i.test(ua))setTimeout(function(){
+    ask('你在微信里打开的',['微信里<b>记的东西很容易丢</b>（关掉就没了，也存不了备份文件）。',
+      '请点右上角「···」→「用其他应用打开」→ 选浏览器，再记这笔。'],'知道了');},500);
+}
+boot();
+window.__app={get rows(){return S.rows;},get idb(){return S.idb;},render:render,ask:ask,parseCsv:parseCsv,toCsv:toCsv,
+  importRows:importRows,filtered:filtered};
+})();
+</script>
+</body>
+</html>
